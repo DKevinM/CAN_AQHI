@@ -1,0 +1,17 @@
+fetch("data/aqhi_points.geojson")
+  .then(r => r.json())
+  .then(geojson => {
+    L.geoJSON(geojson, {
+      pointToLayer: (f, latlng) =>
+        L.circleMarker(latlng, {
+          radius: 6,
+          fillColor: f.properties.color,
+          color: f.properties.color,
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.9
+        }).bindPopup(
+          `<b>${f.properties.name}</b><br>AQHI: ${f.properties.aqhi}<br>${f.properties.observed}`
+        )
+    }).addTo(map);
+  });
