@@ -1,32 +1,71 @@
-(async function () {
-  try {
-    // ensure map is already created:
-    // const map = L.map('map').setView([56, -106], 5);
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CAN AQHI Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100vh; width: 100%; } /* <-- MUST have height */
+  </style>
+</head>
+<body>
+  <div id="map"></div>
 
-    const res = await fetch('./data/aqhi_points.geojson', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status} fetching GeoJSON`);
-    const geojson = await res.json();
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
 
-    const layer = L.geoJSON(geojson, {
-      pointToLayer: (feature, latlng) => {
-        const p = feature.properties || {};
-        const color = p.color || '#9e9e9e';
-        return L.circleMarker(latlng, {
-          radius: 6,
-          fillColor: color,
-          color: color,
-          weight: 1,
-          opacity: 1,
-          fillOpacity: 0.9
-        }).bindPopup(
-          `<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${p.observed ?? ''}`
-        );
+  <script>
+  (async function () {
+    try {
+      // 1) Initialize the map BEFORE fetch
+      const map = L.map('map').setView([56, -106], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      // 2) Load your GeoJSON (relative path for GitHub Pages)
+      const res = await fetch('./data/aqhi_points.geojson', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} fetching GeoJSON`);
+      const geojson = await res.json();
+
+      // 3) Add to map
+      const layer = L.geoJSON(geojson, {
+        pointToLayer: (feature, latlng) => {
+          const p = feature.properties || {};
+          const color = p.color || '#9e9e9e';
+          return L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: color,
+            color: color,
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.9
+          }).bindPopup(
+            `<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${p.observed ?? ''}`
+          );
+        }
+      }).addTo(map);
+
+      if (layer.getLayers().length) {
+        map.fitBounds(layer.getBounds(), { padding: [20, 20] });
       }
-    }).addTo(map);
-
-    // optional: fit to points
-    if (layer.getLayers().length) map.fitBounds(layer.getBounds(), { padding: [20,20] });
-  } catch (err) {
-    console.error('Failed to load AQHI GeoJSON:', err);
-  }
-})();
+    } catch (err) {
+      console.error('Failed to load AQHI GeoJSON:', err);
+    }
+  })();
+  </script>
+</body>
+</html>
