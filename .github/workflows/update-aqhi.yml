@@ -21,7 +21,7 @@ jobs:
 
       - name: Run script
         run: |
-          python scripts/aqhi_xml_to_map.py \
+          python aqhi_xml_to_map.py \
             --out-csv data/aqhi_points.csv \
             --out-html data/aqhi_map.html \
             --out-geojson data/aqhi_points.geojson
