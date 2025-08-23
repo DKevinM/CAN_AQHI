@@ -146,6 +146,7 @@ def main():
     ap.add_argument("--bbox", nargs=4, type=float, default=None, help="W S E N")
     ap.add_argument("--out-csv", default="aqhi_points.csv")
     ap.add_argument("--out-html", default="aqhi_map.html")
+    ap.add_argument("--out-geojson", default="aqhi_points.geojson")
     args = ap.parse_args()
 
     xml_list = fetch_xml(MASTER_LIST_URL)
@@ -172,9 +173,17 @@ def main():
         W,S,E,N = args.bbox
         df = df[(df["lon"]>=W)&(df["lon"]<=E)&(df["lat"]>=S)&(df["lat"]<=N)]
 
-    df.to_csv(args.out_csv, index=False)
-    print(f"Wrote {args.out_csv} with {len(df)} rows")
-    build_map(df, args.out_html)
+  if args.out_geojson:
+      import geopandas as gpd
+      gdf = gpd.GeoDataFrame(df,
+          geometry=gpd.points_from_xy(df.lon, df.lat),
+          crs="EPSG:4326"
+      )
+      gdf.to_file(args.out_geojson, driver="GeoJSON")
+      print(f"Wrote {args.out_geojson}")
+  
+  # Build map if folium installed
+  build_map(df, args.out_html)
 
 if __name__ == "__main__":
     main()
