@@ -1,17 +1,32 @@
-fetch("data/aqhi_points.geojson")
-  .then(r => r.json())
-  .then(geojson => {
-    L.geoJSON(geojson, {
-      pointToLayer: (f, latlng) =>
-        L.circleMarker(latlng, {
+(async function () {
+  try {
+    // ensure map is already created:
+    // const map = L.map('map').setView([56, -106], 5);
+
+    const res = await fetch('./data/aqhi_points.geojson', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching GeoJSON`);
+    const geojson = await res.json();
+
+    const layer = L.geoJSON(geojson, {
+      pointToLayer: (feature, latlng) => {
+        const p = feature.properties || {};
+        const color = p.color || '#9e9e9e';
+        return L.circleMarker(latlng, {
           radius: 6,
-          fillColor: f.properties.color,
-          color: f.properties.color,
+          fillColor: color,
+          color: color,
           weight: 1,
           opacity: 1,
           fillOpacity: 0.9
         }).bindPopup(
-          `<b>${f.properties.name}</b><br>AQHI: ${f.properties.aqhi}<br>${f.properties.observed}`
-        )
+          `<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${p.observed ?? ''}`
+        );
+      }
     }).addTo(map);
-  });
+
+    // optional: fit to points
+    if (layer.getLayers().length) map.fitBounds(layer.getBounds(), { padding: [20,20] });
+  } catch (err) {
+    console.error('Failed to load AQHI GeoJSON:', err);
+  }
+})();
