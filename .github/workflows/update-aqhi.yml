@@ -1,35 +1,24 @@
-name: Update AQHI data
-
+name: Update AQHI (GeoMet)
 on:
-  schedule:
-    - cron: "0 * * * *"   # every hour
-  workflow_dispatch:      # allow manual runs
+  schedule: [ { cron: "7 * * * *" } ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install deps
-        run: pip install requests pandas folium geopandas tqdm
-
-      - name: Run script
-        run: |
-          python aqhi_xml_to_map.py \
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install requests pandas folium
+      - run: |
+          python scripts/aqhi_geomet_to_geojson.py \
             --out-csv data/aqhi_points.csv \
-            --out-html data/aqhi_map.html \
-            --out-geojson data/aqhi_points.geojson
-
-      - name: Commit & push results
-        run: |
+            --out-geojson data/aqhi_points.geojson \
+            --out-html data/aqhi_map.html
+      - run: |
           git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.email "actions@github.com"
           git add data/
-          git commit -m "Update AQHI data"
+          git commit -m "Update AQHI data" || echo "No changes"
           git push
