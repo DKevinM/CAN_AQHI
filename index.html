@@ -58,17 +58,35 @@
     // Load FORECAST layer
     try {
       const fcst = await fetchJSON('./data/aqhi_forecasts.geojson');
-      fcstLayer = L.geoJSON(fcst, {
+      const fcstLayer = fcst ? L.geoJSON(fcst, {
         pointToLayer: (f, latlng) => {
           const p = f.properties || {};
           const c = p.p1_color || '#9e9e9e';
-          const label = p.p1_label || 'Next period';
-          const issued = p.forecast_datetime_text_en || p.publication_datetime_text_en || '';
+      
+          // Build a table of up to 5 forecast periods
+          let table = '<table style="font-size:12px;">';
+          for (let i=1; i<=5; i++) {
+            const lbl = p[`p${i}_label`];
+            const val = p[`p${i}_aqhi`];
+            if (lbl && val !== undefined && val !== null) {
+              table += `<tr><td>${lbl}</td><td style="padding-left:8px;">AQHI ${val}</td></tr>`;
+            }
+          }
+          table += '</table>';
+      
+          const issued = p.forecast_datetime_text_en 
+                      || p.publication_datetime_text_en 
+                      || p.publication_datetime 
+                      || '';
+      
           return L.circleMarker(latlng, {
             radius: 6, color: c, fillColor: c, weight: 1, fillOpacity: 0.9
-          }).bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>${label}: ${p.p1_aqhi ?? '—'}<br>Issued: ${issued}`);
+          }).bindPopup(
+            `<b>${p.name ?? '(unknown)'}</b><br>${table}<br>Issued: ${issued}`
+          );
         }
-      }); // note: not added by default so the toggle starts OFF
+      }) : null;
+
       overlays['AQHI (forecast: next period)'] = fcstLayer;
     } catch (e) {
       console.warn('Forecast layer not loaded:', e);
