@@ -175,9 +175,9 @@ def build_map(obs_df: pd.DataFrame, fcst_df: pd.DataFrame, out_html: Path):
         obs_layer = folium.FeatureGroup(name="AQHI (observed)", show=True)
         for _, r in obs_df.iterrows():
             folium.CircleMarker(
-                [float(r["lat"]), float(r["lon"])], **_obspt(r)
-            ).bindPopup(
-                f"<b>{r.get('name','(unknown)')}</b><br>AQHI: {r.get('aqhi','—')}<br>{r.get('observed','')}"
+                [float(r["lat"]), float(r["lon"])],
+                popup=f"<b>{r.get('name','(unknown)')}</b><br>AQHI: {r.get('aqhi','—')}<br>{r.get('observed','')}",
+                **_obspt(r)
             ).add_to(obs_layer)
         obs_layer.add_to(m)
 
@@ -191,11 +191,11 @@ def build_map(obs_df: pd.DataFrame, fcst_df: pd.DataFrame, out_html: Path):
         for _, r in fcst_df.iterrows():
             label = r.get("p1_label") or "Next period"
             folium.CircleMarker(
-                [float(r["lat"]), float(r["lon"])], **_fcstpt(r)
-            ).bindPopup(
-                f"<b>{r.get('name','(unknown)')}</b><br>"
-                f"{label}: {r.get('p1_aqhi','—')}<br>"
-                f"Issued: {r.get('publication_datetime','')}"
+                [float(r["lat"]), float(r["lon"])],
+                popup=(f"<b>{r.get('name','(unknown)')}</b><br>"
+                       f"{label}: {r.get('p1_aqhi','—')}<br>"
+                       f"Issued: {r.get('publication_datetime','')}"),
+                **_fcstpt(r)
             ).add_to(fcst_layer)
         fcst_layer.add_to(m)
 
