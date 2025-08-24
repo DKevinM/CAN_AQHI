@@ -63,7 +63,7 @@
           const p = f.properties || {};
           const c = p.p1_color || '#9e9e9e';
           const label = p.p1_label || 'Next period';
-          const issued = p.forecast_datetime_text_en || p.publication_datetime || '';
+          const issued = p.forecast_datetime_text_en || p.publication_datetime_text_en || '';
           return L.circleMarker(latlng, {
             radius: 6, color: c, fillColor: c, weight: 1, fillOpacity: 0.9
           }).bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>${label}: ${p.p1_aqhi ?? '—'}<br>Issued: ${issued}`);
