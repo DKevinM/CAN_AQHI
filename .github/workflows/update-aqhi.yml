@@ -1,7 +1,7 @@
 name: Update AQHI (GeoMet)
 
 permissions:
-  contents: write   # <-- give GITHUB_TOKEN permission to push
+  contents: write   
   
 on:
   schedule: [ { cron: "7 * * * *" } ]
