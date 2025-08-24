@@ -86,6 +86,8 @@ def obs_to_df(features: List[Dict[str, Any]]) -> pd.DataFrame:
             "province": p.get("province"),
             "aqhi": p.get("aqhi"),
             "observed": p.get("observation_datetime"),
+            "observation_datetime_text_en": p.get("observation_datetime_text_en"),
+            "observation_datetime_text_fr": p.get("observation_datetime_text_fr"),
             "lon": coords[0],
             "lat": coords[1],
         })
@@ -98,6 +100,7 @@ def obs_to_df(features: List[Dict[str, Any]]) -> pd.DataFrame:
 def fcst_to_df(features: List[Dict[str, Any]]) -> pd.DataFrame:
     rows = []
     for f in features:
+      
         p = f.get("properties", {})
         g = f.get("geometry", {}) or {}
         coords = g.get("coordinates") or [None, None]
@@ -115,6 +118,8 @@ def fcst_to_df(features: List[Dict[str, Any]]) -> pd.DataFrame:
             "name": p.get("location_name_en") or p.get("location_name_fr"),
             "province": p.get("province"),
             "forecast_datetime": p.get("forecast_datetime"),
+            "forecast_datetime_text_en": p.get("forecast_datetime_text_en"),
+            "forecast_datetime_text_fr": p.get("forecast_datetime_text_fr"),
             "publication_datetime": p.get("publication_datetime"),
             "p1_label": p1_label,
             "p1_aqhi": p1_aqhi,
@@ -250,8 +255,8 @@ def main():
     # Write GeoJSON
     obs_geo = out_dir / "aqhi_observations.geojson"
     fcst_geo = out_dir / "aqhi_forecasts.geojson"
-    save_geojson(df_to_geojson(obs_df[["id","name","province","aqhi","observed","color","lat","lon"]]), obs_geo)
-    save_geojson(df_to_geojson(fcst_df[["id","name","province","forecast_datetime","publication_datetime",
+    save_geojson(df_to_geojson(obs_df[["id","name","province","aqhi","observed","observation_datetime_text_en","color","lat","lon"]]), obs_geo)
+    save_geojson(df_to_geojson(fcst_df[["id","name","province","forecast_datetime","forecast_datetime_text_en","publication_datetime",
                                         "p1_label","p1_aqhi","p2_label","p2_aqhi","p3_label","p3_aqhi",
                                         "p4_label","p4_aqhi","p5_label","p5_aqhi","p1_color","lat","lon"]]), fcst_geo)
     print(f"Wrote {obs_geo}")
