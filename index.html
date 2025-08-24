@@ -4,66 +4,85 @@
   <meta charset="utf-8" />
   <title>CAN AQHI Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="">
   <style>
-    html, body { height: 100%; margin: 0; }
-    #map { height: 100vh; width: 100%; } /* <-- MUST have height */
+    html, body { height:100%; margin:0; }
+    #map { height:100vh; width:100%; }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- Leaflet JS -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
 
   <script>
   (async function () {
+    const map = L.map('map').setView([56, -106], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18, attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // Helper to fetch JSON with cache-busting
+    async function fetchJSON(url) {
+      const res = await fetch(url + '?v=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+      return res.json();
+    }
+
+    let obsLayer = null, fcstLayer = null;
+    const overlays = {};
+
+    // Load OBSERVED layer
     try {
-      // 1) Initialize the map BEFORE fetch
-      const map = L.map('map').setView([56, -106], 5);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(map);
-
-      // 2) Load your GeoJSON (relative path for GitHub Pages)
-      const res = await fetch('./data/aqhi_points.geojson', { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status} fetching GeoJSON`);
-      const geojson = await res.json();
-
-      // 3) Add to map
-      const layer = L.geoJSON(geojson, {
-        pointToLayer: (feature, latlng) => {
-          const p = feature.properties || {};
-          const color = p.color || '#9e9e9e';
+      const obs = await fetchJSON('./data/aqhi_observations.geojson');
+      obsLayer = L.geoJSON(obs, {
+        pointToLayer: (f, latlng) => {
+          const p = f.properties || {};
+          const c = p.color || '#9e9e9e';
+          const when = p.observation_datetime_text_en || p.observed || '';
           return L.circleMarker(latlng, {
-            radius: 6,
-            fillColor: color,
-            color: color,
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.9
-          }).bindPopup(
-            `<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${p.observed ?? ''}`
-          );
+            radius: 6, color: c, fillColor: c, weight: 1, fillOpacity: 0.9
+          }).bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${when}`);
         }
       }).addTo(map);
+      overlays['AQHI (observed)'] = obsLayer;
+    } catch (e) {
+      console.warn('Observed layer not loaded:', e);
+    }
 
-      if (layer.getLayers().length) {
-        map.fitBounds(layer.getBounds(), { padding: [20, 20] });
-      }
-    } catch (err) {
-      console.error('Failed to load AQHI GeoJSON:', err);
+    // Load FORECAST layer
+    try {
+      const fcst = await fetchJSON('./data/aqhi_forecasts.geojson');
+      fcstLayer = L.geoJSON(fcst, {
+        pointToLayer: (f, latlng) => {
+          const p = f.properties || {};
+          const c = p.p1_color || '#9e9e9e';
+          const label = p.p1_label || 'Next period';
+          const issued = p.forecast_datetime_text_en || p.publication_datetime || '';
+          return L.circleMarker(latlng, {
+            radius: 6, color: c, fillColor: c, weight: 1, fillOpacity: 0.9
+          }).bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>${label}: ${p.p1_aqhi ?? '—'}<br>Issued: ${issued}`);
+        }
+      }); // note: not added by default so the toggle starts OFF
+      overlays['AQHI (forecast: next period)'] = fcstLayer;
+    } catch (e) {
+      console.warn('Forecast layer not loaded:', e);
+    }
+
+    // Add the layers control (appears if there’s at least one overlay)
+    L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+
+    // Fit to data
+    if (obsLayer && obsLayer.getLayers().length) {
+      map.fitBounds(obsLayer.getBounds(), { padding: [20, 20] });
+    } else if (fcstLayer && fcstLayer.getLayers().length) {
+      map.fitBounds(fcstLayer.getBounds(), { padding: [20, 20] });
+      fcstLayer.addTo(map); // show forecast if it’s the only one
     }
   })();
   </script>
