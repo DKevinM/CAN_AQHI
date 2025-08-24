@@ -9,8 +9,17 @@
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
         crossorigin="">
   <style>
-    html, body { height:100%; margin:0; }
-    #map { height:100vh; width:100%; }
+    html,body{height:100%;margin:0}
+    #map{height:100vh;width:100%}
+    .period-control {
+      background:#fff; padding:8px 10px; border:1px solid #888; border-radius:6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.2); font: 14px/1.2 system-ui, Arial;
+    }
+    .legend {
+      position: fixed; bottom: 18px; left: 12px; background: #fff; border:1px solid #888; border-radius:6px;
+      padding:8px; font:12px/1.2 system-ui, Arial; z-index: 9999;
+    }
+    .legend .sw{display:inline-block;width:14px;height:14px;border:1px solid #333;margin-right:4px}
   </style>
 </head>
 <body>
@@ -19,89 +28,140 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin=""></script>
-
   <script>
-  (async function () {
-    const map = L.map('map').setView([56, -106], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18, attribution: '&copy; OpenStreetMap'
+  (async function() {
+    const map = L.map('map').setView([56,-106],5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:18, attribution:'&copy; OpenStreetMap'
     }).addTo(map);
 
-    // Helper to fetch JSON with cache-busting
-    async function fetchJSON(url) {
-      const res = await fetch(url + '?v=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-      return res.json();
+    // --- palette / helpers ---
+    const PALETTE = ["#01cbff","#0099cb","#016797","#fffe03","#ffcb00","#ff9835","#fd6866","#fe0002","#cc0001","#9a0100","#640100"];
+    const MISSING = "#9e9e9e";
+    function aqhiColor(v){
+      if (v==null || isNaN(v)) return MISSING;
+      v = +v;
+      if (v<=1) return PALETTE[0];
+      if (v<=2) return PALETTE[1];
+      if (v<=3) return PALETTE[2];
+      if (v<=4) return PALETTE[3];
+      if (v<=5) return PALETTE[4];
+      if (v<=6) return PALETTE[5];
+      if (v<=7) return PALETTE[6];
+      if (v<=8) return PALETTE[7];
+      if (v<=9) return PALETTE[8];
+      if (v<=10) return PALETTE[9];
+      return PALETTE[10];
+    }
+    async function fetchJSON(url){
+      const r = await fetch(url + '?v=' + Date.now(), {cache:'no-store'});
+      if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+      return r.json();
     }
 
-    let obsLayer = null, fcstLayer = null;
+    // --- load datasets ---
+    let obsLayer=null, fcstLayer=null;
     const overlays = {};
 
-    // Load OBSERVED layer
-    try {
+    // Observed
+    try{
       const obs = await fetchJSON('./data/aqhi_observations.geojson');
       obsLayer = L.geoJSON(obs, {
         pointToLayer: (f, latlng) => {
-          const p = f.properties || {};
-          const c = p.color || '#9e9e9e';
+          const p = f.properties||{};
+          const c = p.color || aqhiColor(p.aqhi);
           const when = p.observation_datetime_text_en || p.observed || '';
-          return L.circleMarker(latlng, {
-            radius: 6, color: c, fillColor: c, weight: 1, fillOpacity: 0.9
-          }).bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${when}`);
+          return L.circleMarker(latlng,{radius:6,color:c,fillColor:c,weight:1,fillOpacity:0.9})
+            .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${when}`);
         }
       }).addTo(map);
       overlays['AQHI (observed)'] = obsLayer;
-    } catch (e) {
-      console.warn('Observed layer not loaded:', e);
-    }
+    }catch(e){ console.warn('Observed not loaded:', e); }
 
-    // Load FORECAST layer
-    try {
+    // Forecast
+    // we store refs to markers so we can recolor them when period changes
+    const forecastMarkers = [];
+    try{
       const fcst = await fetchJSON('./data/aqhi_forecasts.geojson');
-      const fcstLayer = fcst ? L.geoJSON(fcst, {
+      fcstLayer = L.geoJSON(fcst, {
         pointToLayer: (f, latlng) => {
-          const p = f.properties || {};
-          const c = p.p1_color || '#9e9e9e';
-      
-          // Build a table of up to 5 forecast periods
-          let table = '<table style="font-size:12px;">';
-          for (let i=1; i<=5; i++) {
-            const lbl = p[`p${i}_label`];
-            const val = p[`p${i}_aqhi`];
-            if (lbl && val !== undefined && val !== null) {
-              table += `<tr><td>${lbl}</td><td style="padding-left:8px;">AQHI ${val}</td></tr>`;
-            }
+          const p = f.properties||{};
+          // create marker with initial color = p1
+          const c = aqhiColor(p.p1_aqhi);
+          // popup: table for all 5 periods + issued text
+          let table = '<table style="font-size:12px">';
+          for (let i=1;i<=5;i++){
+            const lbl = p[`p${i}_label`], val = p[`p${i}_aqhi`];
+            if (lbl && (val!=null)) table += `<tr><td>${lbl}</td><td style="padding-left:8px;">AQHI ${val}</td></tr>`;
           }
           table += '</table>';
-      
-          const issued = p.forecast_datetime_text_en 
-                      || p.publication_datetime_text_en 
-                      || p.publication_datetime 
-                      || '';
-      
-          return L.circleMarker(latlng, {
-            radius: 6, color: c, fillColor: c, weight: 1, fillOpacity: 0.9
-          }).bindPopup(
-            `<b>${p.name ?? '(unknown)'}</b><br>${table}<br>Issued: ${issued}`
-          );
+          const issued = p.forecast_datetime_text_en
+                      || p.publication_datetime_text_en
+                      || p.publication_datetime || '';
+          const m = L.circleMarker(latlng,{radius:6,color:c,fillColor:c,weight:1,fillOpacity:0.9})
+            .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>${table}<br>Issued: ${issued}`);
+          // keep reference so we can recolor later
+          m.__aqhiProps = p;
+          forecastMarkers.push(m);
+          return m;
         }
-      }) : null;
+      });
+      overlays['AQHI (forecast)'] = fcstLayer; // don't add by default; toggle via menu
+    }catch(e){ console.warn('Forecast not loaded:', e); }
 
-      overlays['AQHI (forecast: next period)'] = fcstLayer;
-    } catch (e) {
-      console.warn('Forecast layer not loaded:', e);
-    }
-
-    // Add the layers control (appears if there’s at least one overlay)
-    L.control.layers(null, overlays, { collapsed: false }).addTo(map);
+    // Layers control
+    L.control.layers(null, overlays, {collapsed:false}).addTo(map);
 
     // Fit to data
     if (obsLayer && obsLayer.getLayers().length) {
-      map.fitBounds(obsLayer.getBounds(), { padding: [20, 20] });
+      map.fitBounds(obsLayer.getBounds(), {padding:[20,20]});
     } else if (fcstLayer && fcstLayer.getLayers().length) {
-      map.fitBounds(fcstLayer.getBounds(), { padding: [20, 20] });
-      fcstLayer.addTo(map); // show forecast if it’s the only one
+      map.fitBounds(fcstLayer.getBounds(), {padding:[20,20]});
+      fcstLayer.addTo(map);
     }
+
+    // --- Custom control for forecast period selection ---
+    // UI: radio buttons P1..P5; recolor forecast layer markers when changed
+    const PeriodControl = L.Control.extend({
+      onAdd: function(){
+        const div = L.DomUtil.create('div','period-control');
+        div.innerHTML = `
+          <div><b>Forecast period</b></div>
+          <label><input type="radio" name="p" value="1" checked> ${'P1 (Next)'}</label><br>
+          <label><input type="radio" name="p" value="2"> P2</label><br>
+          <label><input type="radio" name="p" value="3"> P3</label><br>
+          <label><input type="radio" name="p" value="4"> P4</label><br>
+          <label><input type="radio" name="p" value="5"> P5</label>
+        `;
+        // prevent map drag when interacting
+        L.DomEvent.disableClickPropagation(div);
+        div.querySelectorAll('input[name="p"]').forEach(r => {
+          r.addEventListener('change', (e) => updateForecastColors(+e.target.value));
+        });
+        return div;
+      },
+      onRemove: function(){}
+    });
+    const periodCtl = new PeriodControl({position:'topleft'});
+    periodCtl.addTo(map);
+
+    function updateForecastColors(n){ // n = 1..5
+      if (!forecastMarkers.length) return;
+      for (const m of forecastMarkers){
+        const p = m.__aqhiProps || {};
+        const v = p[`p${n}_aqhi`];
+        const c = aqhiColor(v);
+        m.setStyle({color:c, fillColor:c});
+      }
+    }
+
+    // Legend
+    const legend = document.createElement('div');
+    legend.className = 'legend';
+    legend.innerHTML = '<b>AQHI</b><br>' +
+      PALETTE.map(c => `<span class="sw" style="background:${c}"></span>`).join('') +
+      '<div style="margin-top:4px;font-size:11px">1..10, 10+ · grey = missing</div>';
+    document.body.appendChild(legend);
   })();
   </script>
 </body>
