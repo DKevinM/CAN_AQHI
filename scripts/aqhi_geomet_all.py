@@ -118,9 +118,11 @@ def fcst_to_df(features: List[Dict[str, Any]]) -> pd.DataFrame:
             "name": p.get("location_name_en") or p.get("location_name_fr"),
             "province": p.get("province"),
             "forecast_datetime": p.get("forecast_datetime"),
+            "publication_datetime": p.get("publication_datetime"),
             "forecast_datetime_text_en": p.get("forecast_datetime_text_en"),
             "forecast_datetime_text_fr": p.get("forecast_datetime_text_fr"),
-            "publication_datetime": p.get("publication_datetime"),
+            "publication_datetime_text_en": p.get("publication_datetime_text_en"),
+            "publication_datetime_text_fr": p.get("publication_datetime_text_fr"),         
             "p1_label": p1_label,
             "p1_aqhi": p1_aqhi,
             "p2_label": p2_label,
@@ -256,7 +258,7 @@ def main():
     obs_geo = out_dir / "aqhi_observations.geojson"
     fcst_geo = out_dir / "aqhi_forecasts.geojson"
     save_geojson(df_to_geojson(obs_df[["id","name","province","aqhi","observed","observation_datetime_text_en","color","lat","lon"]]), obs_geo)
-    save_geojson(df_to_geojson(fcst_df[["id","name","province","forecast_datetime","forecast_datetime_text_en","publication_datetime",
+    save_geojson(df_to_geojson(fcst_df[["id","name","province","forecast_datetime","forecast_datetime_text_en","publication_datetime_text_en","publication_datetime",
                                         "p1_label","p1_aqhi","p2_label","p2_aqhi","p3_label","p3_aqhi",
                                         "p4_label","p4_aqhi","p5_label","p5_aqhi","p1_color","lat","lon"]]), fcst_geo)
     print(f"Wrote {obs_geo}")
