@@ -11,7 +11,7 @@
   <style>
     html,body{height:100%;margin:0}
     #map{height:100vh;width:100%}
-    .period-control {
+    .ctl {
       background:#fff; padding:8px 10px; border:1px solid #888; border-radius:6px;
       box-shadow: 0 1px 3px rgba(0,0,0,.2); font: 14px/1.2 system-ui, Arial;
     }
@@ -59,6 +59,37 @@
       return r.json();
     }
 
+    // Map a user-friendly category to the most appropriate forecast period index by label.
+    function pickPeriodIndexByCategory(p, category){
+      // Normalize labels
+      const labels = [];
+      for (let i=1;i<=5;i++){
+        const lbl = (p[`p${i}_label`] || '').toString().toLowerCase();
+        labels.push(lbl);
+      }
+      const has = (i, s) => labels[i-1].includes(s);
+
+      // keyword sets (case-insensitive)
+      const isToday = i => has(i,'today') || has(i,'this morning') || has(i,'this afternoon') || (has(i,'this evening') && !has(i,'tonight'));
+      const isTonight = i => has(i,'tonight') || has(i,'overnight') || has(i,'this night');
+      const isTomorrow = i => (has(i,'tomorrow') && !has(i,'night')) || has(i,'tomorrow daytime') || has(i,'tomorrow afternoon') || has(i,'tomorrow morning');
+      const isTomorrowNight = i => has(i,'tomorrow night') || has(i,'tomorrow evening') || has(i,'tomorrow overnight');
+
+      let test;
+      if (category==='today') test = isToday;
+      else if (category==='tonight') test = isTonight;
+      else if (category==='tomorrow') test = isTomorrow;
+      else if (category==='tomorrow_night') test = isTomorrowNight;
+
+      // Try to find the first matching period
+      if (test){
+        for (let i=1;i<=5;i++) if (test(i)) return i;
+      }
+      // Fallback: assume the API order is roughly [today/tonight, next, ...]
+      const fallback = { today:1, tonight:2, tomorrow:3, tomorrow_night:4 };
+      return fallback[category] || 1;
+    }
+
     // --- load datasets ---
     let obsLayer=null, fcstLayer=null;
     const overlays = {};
@@ -78,35 +109,67 @@
       overlays['AQHI (observed)'] = obsLayer;
     }catch(e){ console.warn('Observed not loaded:', e); }
 
-    // Forecast
-    // we store refs to markers so we can recolor them when period changes
+    // Forecast (single layer, recolored by selected category)
     const forecastMarkers = [];
+    let currentCategory = 'today'; // default
+
+    function popupTable(p){
+      // Small 4-row table for the requested categories (today/tonight/tomorrow/tomorrow night)
+      const cats = [
+        ['today','Today'],
+        ['tonight','Tonight'],
+        ['tomorrow','Tomorrow'],
+        ['tomorrow_night','Tomorrow night'],
+      ];
+      let html = '<table style="font-size:12px">';
+      for (const [key,label] of cats){
+        const idx = pickPeriodIndexByCategory(p, key);
+        const val = p[`p${idx}_aqhi`];
+        html += `<tr><td>${label}</td><td style="padding-left:8px;">AQHI ${val ?? '—'}</td></tr>`;
+      }
+      html += '</table>';
+      return html;
+    }
+
+    function recolorForecastMarkers(){
+      for (const m of forecastMarkers){
+        const p = m.__aqhiProps || {};
+        const idx = pickPeriodIndexByCategory(p, currentCategory);
+        const val = p[`p${idx}_aqhi`];
+        const c = aqhiColor(val);
+        m.setStyle({color:c, fillColor:c});
+        // Update a compact popup header line reflecting the selected category
+        const labelMap = {today:'Today', tonight:'Tonight', tomorrow:'Tomorrow', tomorrow_night:'Tomorrow night'};
+        const chosenLabel = labelMap[currentCategory] || 'Next';
+        m.setPopupContent(
+          `<b>${p.name ?? '(unknown)'}</b><br>` +
+          `${chosenLabel}: AQHI ${val ?? '—'}<br>` +
+          popupTable(p) // include the 4-row table for context (no time shown)
+        );
+      }
+    }
+
     try{
       const fcst = await fetchJSON('./data/aqhi_forecasts.geojson');
       fcstLayer = L.geoJSON(fcst, {
         pointToLayer: (f, latlng) => {
           const p = f.properties||{};
-          // create marker with initial color = p1
-          const c = aqhiColor(p.p1_aqhi);
-          // popup: table for all 5 periods + issued text
-          let table = '<table style="font-size:12px">';
-          for (let i=1;i<=5;i++){
-            const lbl = p[`p${i}_label`], val = p[`p${i}_aqhi`];
-            if (lbl && (val!=null)) table += `<tr><td>${lbl}</td><td style="padding-left:8px;">AQHI ${val}</td></tr>`;
-          }
-          table += '</table>';
-          const issued = p.forecast_datetime_text_en
-                      || p.publication_datetime_text_en
-                      || p.publication_datetime || '';
+          // initial color based on 'today'
+          const idx = pickPeriodIndexByCategory(p, currentCategory);
+          const val = p[`p${idx}_aqhi`];
+          const c = aqhiColor(val);
           const m = L.circleMarker(latlng,{radius:6,color:c,fillColor:c,weight:1,fillOpacity:0.9})
-            .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>${table}<br>Issued: ${issued}`);
-          // keep reference so we can recolor later
+            .bindPopup(
+              `<b>${p.name ?? '(unknown)'}</b><br>` +
+              `Today: AQHI ${val ?? '—'}<br>` +
+              popupTable(p)
+            );
           m.__aqhiProps = p;
           forecastMarkers.push(m);
           return m;
         }
       });
-      overlays['AQHI (forecast)'] = fcstLayer; // don't add by default; toggle via menu
+      overlays['AQHI (forecast)'] = fcstLayer; // toggle via menu (starts OFF)
     }catch(e){ console.warn('Forecast not loaded:', e); }
 
     // Layers control
@@ -120,40 +183,29 @@
       fcstLayer.addTo(map);
     }
 
-    // --- Custom control for forecast period selection ---
-    // UI: radio buttons P1..P5; recolor forecast layer markers when changed
-    const PeriodControl = L.Control.extend({
+    // --- Custom control: forecast period selector (4 options) ---
+    const PeriodCtl = L.Control.extend({
       onAdd: function(){
-        const div = L.DomUtil.create('div','period-control');
+        const div = L.DomUtil.create('div','ctl');
         div.innerHTML = `
           <div><b>Forecast period</b></div>
-          <label><input type="radio" name="p" value="1" checked> ${'P1 (Next)'}</label><br>
-          <label><input type="radio" name="p" value="2"> P2</label><br>
-          <label><input type="radio" name="p" value="3"> P3</label><br>
-          <label><input type="radio" name="p" value="4"> P4</label><br>
-          <label><input type="radio" name="p" value="5"> P5</label>
+          <label><input type="radio" name="p" value="today" checked> Today</label><br>
+          <label><input type="radio" name="p" value="tonight"> Tonight</label><br>
+          <label><input type="radio" name="p" value="tomorrow"> Tomorrow</label><br>
+          <label><input type="radio" name="p" value="tomorrow_night"> Tomorrow night</label>
         `;
-        // prevent map drag when interacting
         L.DomEvent.disableClickPropagation(div);
         div.querySelectorAll('input[name="p"]').forEach(r => {
-          r.addEventListener('change', (e) => updateForecastColors(+e.target.value));
+          r.addEventListener('change', (e) => {
+            currentCategory = e.target.value;
+            recolorForecastMarkers();
+          });
         });
         return div;
       },
       onRemove: function(){}
     });
-    const periodCtl = new PeriodControl({position:'topleft'});
-    periodCtl.addTo(map);
-
-    function updateForecastColors(n){ // n = 1..5
-      if (!forecastMarkers.length) return;
-      for (const m of forecastMarkers){
-        const p = m.__aqhiProps || {};
-        const v = p[`p${n}_aqhi`];
-        const c = aqhiColor(v);
-        m.setStyle({color:c, fillColor:c});
-      }
-    }
+    new PeriodCtl({position:'topleft'}).addTo(map);
 
     // Legend
     const legend = document.createElement('div');
