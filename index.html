@@ -59,9 +59,8 @@
       return r.json();
     }
 
-    // Map a user-friendly category to the most appropriate forecast period index by label.
+    // Map a friendly category to the most appropriate forecast period index by label.
     function pickPeriodIndexByCategory(p, category){
-      // Normalize labels
       const labels = [];
       for (let i=1;i<=5;i++){
         const lbl = (p[`p${i}_label`] || '').toString().toLowerCase();
@@ -69,7 +68,6 @@
       }
       const has = (i, s) => labels[i-1].includes(s);
 
-      // keyword sets (case-insensitive)
       const isToday = i => has(i,'today') || has(i,'this morning') || has(i,'this afternoon') || (has(i,'this evening') && !has(i,'tonight'));
       const isTonight = i => has(i,'tonight') || has(i,'overnight') || has(i,'this night');
       const isTomorrow = i => (has(i,'tomorrow') && !has(i,'night')) || has(i,'tomorrow daytime') || has(i,'tomorrow afternoon') || has(i,'tomorrow morning');
@@ -81,18 +79,15 @@
       else if (category==='tomorrow') test = isTomorrow;
       else if (category==='tomorrow_night') test = isTomorrowNight;
 
-      // Try to find the first matching period
       if (test){
         for (let i=1;i<=5;i++) if (test(i)) return i;
       }
-      // Fallback: assume the API order is roughly [today/tonight, next, ...]
       const fallback = { today:1, tonight:2, tomorrow:3, tomorrow_night:4 };
       return fallback[category] || 1;
     }
 
     // --- load datasets ---
     let obsLayer=null, fcstLayer=null;
-    const overlays = {};
 
     // Observed
     try{
@@ -106,7 +101,6 @@
             .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${when}`);
         }
       }).addTo(map);
-      overlays['AQHI (observed)'] = obsLayer;
     }catch(e){ console.warn('Observed not loaded:', e); }
 
     // Forecast (single layer, recolored by selected category)
@@ -114,7 +108,6 @@
     let currentCategory = 'today'; // default
 
     function popupTable(p){
-      // Small 4-row table for the requested categories (today/tonight/tomorrow/tomorrow night)
       const cats = [
         ['today','Today'],
         ['tonight','Tonight'],
@@ -138,13 +131,12 @@
         const val = p[`p${idx}_aqhi`];
         const c = aqhiColor(val);
         m.setStyle({color:c, fillColor:c});
-        // Update a compact popup header line reflecting the selected category
         const labelMap = {today:'Today', tonight:'Tonight', tomorrow:'Tomorrow', tomorrow_night:'Tomorrow night'};
         const chosenLabel = labelMap[currentCategory] || 'Next';
         m.setPopupContent(
           `<b>${p.name ?? '(unknown)'}</b><br>` +
           `${chosenLabel}: AQHI ${val ?? '—'}<br>` +
-          popupTable(p) // include the 4-row table for context (no time shown)
+          popupTable(p)
         );
       }
     }
@@ -154,7 +146,6 @@
       fcstLayer = L.geoJSON(fcst, {
         pointToLayer: (f, latlng) => {
           const p = f.properties||{};
-          // initial color based on 'today'
           const idx = pickPeriodIndexByCategory(p, currentCategory);
           const val = p[`p${idx}_aqhi`];
           const c = aqhiColor(val);
@@ -169,24 +160,61 @@
           return m;
         }
       });
-      overlays['AQHI (forecast)'] = fcstLayer; // toggle via menu (starts OFF)
+      // note: not added to map by default (Observed starts active)
     }catch(e){ console.warn('Forecast not loaded:', e); }
 
-    // Layers control
-    L.control.layers(null, overlays, {collapsed:false}).addTo(map);
-
-    // Fit to data
-    if (obsLayer && obsLayer.getLayers().length) {
-      map.fitBounds(obsLayer.getBounds(), {padding:[20,20]});
-    } else if (fcstLayer && fcstLayer.getLayers().length) {
-      map.fitBounds(fcstLayer.getBounds(), {padding:[20,20]});
-      fcstLayer.addTo(map);
+    // --- Exclusive layer toggling ---
+    function showObserved() {
+      if (fcstLayer && map.hasLayer(fcstLayer)) map.removeLayer(fcstLayer);
+      if (obsLayer && !map.hasLayer(obsLayer)) obsLayer.addTo(map);
+      setPeriodCtlEnabled(false); // disable period radios when observed
+    }
+    function showForecast() {
+      if (obsLayer && map.hasLayer(obsLayer)) map.removeLayer(obsLayer);
+      if (fcstLayer && !map.hasLayer(fcstLayer)) fcstLayer.addTo(map);
+      recolorForecastMarkers();   // ensure current period colors apply
+      setPeriodCtlEnabled(true);  // enable period radios when forecast is active
+    }
+    function fitToActive() {
+      const active = map.hasLayer(obsLayer) ? obsLayer : (map.hasLayer(fcstLayer) ? fcstLayer : null);
+      if (active && active.getLayers && active.getLayers().length) {
+        map.fitBounds(active.getBounds(), { padding: [20, 20] });
+      }
     }
 
-    // --- Custom control: forecast period selector (4 options) ---
+    // --- Top-right: Observed vs Forecast (radio) ---
+    const ToggleCtl = L.Control.extend({
+      onAdd: function() {
+        const div = L.DomUtil.create('div', 'ctl');
+        div.id = 'layer-toggle-ctl';
+        div.style.minWidth = '200px';
+        div.innerHTML = `
+          <div><b>Layer</b></div>
+          <label><input type="radio" name="view" value="observed" checked> Current (Observed)</label><br>
+          <label><input type="radio" name="view" value="forecast"> Forecast</label>
+        `;
+        L.DomEvent.disableClickPropagation(div);
+        div.querySelectorAll('input[name="view"]').forEach(r => {
+          r.addEventListener('change', (e) => {
+            if (e.target.value === 'observed') {
+              showObserved();
+            } else {
+              showForecast();
+            }
+            fitToActive();
+          });
+        });
+        return div;
+      },
+      onRemove: function() {}
+    });
+    new ToggleCtl({ position: 'topright' }).addTo(map);
+
+    // --- Top-left: Forecast period (radio) ---
     const PeriodCtl = L.Control.extend({
       onAdd: function(){
         const div = L.DomUtil.create('div','ctl');
+        div.id = 'forecast-period-ctl';
         div.innerHTML = `
           <div><b>Forecast period</b></div>
           <label><input type="radio" name="p" value="today" checked> Today</label><br>
@@ -207,6 +235,14 @@
     });
     new PeriodCtl({position:'topleft'}).addTo(map);
 
+    // Enable/disable period control
+    function setPeriodCtlEnabled(enabled){
+      const el = document.getElementById('forecast-period-ctl');
+      if (!el) return;
+      el.style.opacity = enabled ? 1 : 0.5;
+      el.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
+
     // Legend
     const legend = document.createElement('div');
     legend.className = 'legend';
@@ -214,6 +250,11 @@
       PALETTE.map(c => `<span class="sw" style="background:${c}"></span>`).join('') +
       '<div style="margin-top:4px;font-size:11px">1..10, 10+ · grey = missing</div>';
     document.body.appendChild(legend);
+
+    // --- Initial state ---
+    showObserved();     // Observed visible, Forecast hidden
+    fitToActive();
+    setPeriodCtlEnabled(false); // disable forecast period until user selects Forecast
   })();
   </script>
 </body>
