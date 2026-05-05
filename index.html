@@ -117,7 +117,7 @@
           const when = p.observation_datetime_text_en || p.observed || '';
           const val = p.aqhi;
       
-          return L.circleMarker(latlng,{
+          const marker = L.circleMarker(latlng,{
             radius: 10,
             color: c,
             fillColor: c,
@@ -129,12 +129,16 @@
           const label = L.marker(latlng, {
             icon: L.divIcon({
               className: "canaqhi-label",
-              html: (val == null || isNaN(val) ? "—" : (val > 10 ? "10+" : Math.round(val))),
+              html: (val == null || isNaN(Number(val)) ? "—" : (Number(val) > 10 ? "10+" : Math.round(Number(val)))),
               iconSize: [20, 20],
               iconAnchor: [10, 10]
             }),
             interactive: false
-          });          
+          });
+          
+          label.addTo(map);
+          
+          return marker; 
           
         }
       }).addTo(map);
