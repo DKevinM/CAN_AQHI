@@ -108,13 +108,20 @@
     // Observed
     try{
       const obs = await fetchJSON('./data/aqhi_observations.geojson');
+      
+      console.log("OBS loaded:", obs);
+      console.log("OBS features:", obs?.features?.length);
+      
       obsLayer = L.geoJSON(obs, {
         pointToLayer: (f, latlng) => {
+      
+          console.log("OBS point:", latlng, f.properties);
+      
           const p = f.properties||{};
           const c = p.color || aqhiColor(p.aqhi);
           const when = p.observation_datetime_text_en || p.observed || '';
           const val = p.aqhi;
-          
+      
           return L.circleMarker(latlng,{
             radius: 10,
             color: c,
