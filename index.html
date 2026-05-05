@@ -133,7 +133,7 @@
           const p = f.properties||{};
           const c = p.color || aqhiColor(p.aqhi);
           const when = p.observation_datetime_text_en || p.observed || '';
-          const val = p.aqhi;
+          const val = Number.isFinite(Number(p.aqhi)) ? Math.round(Number(p.aqhi)) : null;
       
           const marker = L.circleMarker(latlng,{
             radius: 14,
@@ -158,7 +158,7 @@
             interactive: false
           });
           
-          label.addTo(map);
+          obsLayer.addLayer(label);
           
           return marker; 
           
