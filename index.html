@@ -115,8 +115,6 @@
       obsLayer = L.geoJSON(obs, {
         pointToLayer: (f, latlng) => {
       
-          console.log("OBS point:", latlng, f.properties);
-      
           const p = f.properties||{};
           const c = p.color || aqhiColor(p.aqhi);
           const when = p.observation_datetime_text_en || p.observed || '';
@@ -130,7 +128,7 @@
             fillOpacity: 0.9
           })
           .bindTooltip(
-            (val > 10 ? "10+" : Math.round(val)),
+            (val == null || isNaN(Number(val)) ? "—" : (Number(val) > 10 ? "10+" : Math.round(Number(val)))),
             {
               permanent: true,
               direction: "center",
@@ -196,7 +194,7 @@
             fillOpacity: 0.9
           })
           .bindTooltip(
-            (val > 10 ? "10+" : Math.round(val)),
+            (val == null || isNaN(Number(val)) ? "—" : (Number(val) > 10 ? "10+" : Math.round(Number(val)))),
             {
               permanent: true,
               direction: "center",
