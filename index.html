@@ -109,9 +109,6 @@
     try{
       const obs = await fetchJSON('./data/aqhi_observations.geojson');
       
-      console.log("OBS loaded:", obs);
-      console.log("OBS features:", obs?.features?.length);
-      
       obsLayer = L.geoJSON(obs, {
         pointToLayer: (f, latlng) => {
       
@@ -127,15 +124,9 @@
             weight: 1,
             fillOpacity: 0.9
           })
-          .bindTooltip(
-            (val == null || isNaN(Number(val)) ? "—" : (Number(val) > 10 ? "10+" : Math.round(Number(val)))),
-            {
-              permanent: true,
-              direction: "center",
-              className: "canaqhi-label"
-            }
-          )
           .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${val ?? '—'}<br>${when}`);
+
+          
         }
       }).addTo(map);
     }catch(e){ console.warn('Observed not loaded:', e); }
@@ -186,6 +177,7 @@
           const idx = pickPeriodIndexByCategory(p, currentCategory);
           const val = p[`p${idx}_aqhi`];
           const c = aqhiColor(val);
+
           const m = L.circleMarker(latlng,{
             radius: 10,
             color: c,
@@ -193,15 +185,9 @@
             weight: 1,
             fillOpacity: 0.9
           })
-          .bindTooltip(
-            (val == null || isNaN(Number(val)) ? "—" : (Number(val) > 10 ? "10+" : Math.round(Number(val)))),
-            {
-              permanent: true,
-              direction: "center",
-              className: "canaqhi-label"
-            }
-          )
           .bindPopup(
+
+        
               `<b>${p.name ?? '(unknown)'}</b><br>` +
               `Today: AQHI ${val ?? '—'}<br>` +
               popupTable(p)
