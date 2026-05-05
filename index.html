@@ -221,12 +221,25 @@
       recolorForecastMarkers();   // ensure current period colors apply
       setPeriodCtlEnabled(true);  // enable period radios when forecast is active
     }
+
+
     function fitToActive() {
-      const active = map.hasLayer(obsLayer) ? obsLayer : (map.hasLayer(fcstLayer) ? fcstLayer : null);
+      let active = null;
+    
+      if (obsLayer && map.hasLayer(obsLayer)) {
+        active = obsLayer;
+      } else if (fcstLayer && map.hasLayer(fcstLayer)) {
+        active = fcstLayer;
+      }
+    
       if (active && active.getLayers && active.getLayers().length) {
         map.fitBounds(active.getBounds(), { padding: [20, 20] });
       }
     }
+
+
+
+    
 
     // --- Top-right: Observed vs Forecast (radio) ---
     const ToggleCtl = L.Control.extend({
