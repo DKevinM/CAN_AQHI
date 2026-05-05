@@ -20,6 +20,22 @@
       padding:8px; font:12px/1.2 system-ui, Arial; z-index: 9999;
     }
     .legend .sw{display:inline-block;width:14px;height:14px;border:1px solid #333;margin-right:4px}
+    
+    .leaflet-tooltip.canaqhi-label {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    
+      color: black;
+      font-weight: bold;
+      font-size: 10px;
+    
+      text-shadow:
+        -1px -1px 0 white,
+         1px -1px 0 white,
+        -1px  1px 0 white,
+         1px  1px 0 white;
+    }    
   </style>
 </head>
 <body>
@@ -276,9 +292,20 @@
     // Legend
     const legend = document.createElement('div');
     legend.className = 'legend';
-    legend.innerHTML = '<b>AQHI</b><br>' +
-      PALETTE.map(c => `<span class="sw" style="background:${c}"></span>`).join('') +
-      '<div style="margin-top:4px;font-size:11px">1..10, 10+ · grey = missing</div>';
+    legend.innerHTML = `
+    <b>AQHI</b><br>
+    <div style="display:flex;gap:6px;align-items:flex-end;">
+      ${PALETTE.map((c,i) => `
+        <div style="text-align:center;">
+          <div class="sw" style="background:${c}; margin:0 auto;"></div>
+          <div style="font-size:10px; margin-top:2px;">
+            ${i < 10 ? i+1 : "10+"}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="margin-top:6px;font-size:11px;">grey = missing</div>
+    `;
     document.body.appendChild(legend);
 
     // --- Initial state ---
