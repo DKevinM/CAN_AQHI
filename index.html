@@ -133,7 +133,7 @@
           const p = f.properties||{};
           const c = p.color || aqhiColor(p.aqhi);
           const when = p.observation_datetime_text_en || p.observed || '';
-          const val = Number.isFinite(Number(p.aqhi)) ? Math.round(Number(p.aqhi)) : null;
+          const val = Number(p.aqhi);
       
           const marker = L.circleMarker(latlng,{
             radius: 14,
@@ -142,13 +142,13 @@
             weight: 1,
             fillOpacity: 0.9
           })
-          .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${val ?? '—'}<br>${when}`);
+          .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${!Number.isFinite(val) ? '—' : (val > 10 ? '10+' : Math.round(val))}`);
           
           const label = L.marker(latlng, {
             icon: L.divIcon({
               className: "canaqhi-label",
               html: (() => {
-                const v = Number(p.aqhi);
+                const v = val;
                 if (!Number.isFinite(v)) return "—";
                 return v > 10 ? "10+" : Math.round(v);
               })(),
