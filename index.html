@@ -35,6 +35,24 @@
          1px -1px 0 white,
         -1px  1px 0 white,
          1px  1px 0 white;
+    }
+    .canaqhi-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    
+      width: 20px;
+      height: 20px;
+    
+      font-size: 10px;
+      font-weight: bold;
+      color: black;
+    
+      text-shadow:
+        -1px -1px 0 white,
+         1px -1px 0 white,
+        -1px  1px 0 white,
+         1px  1px 0 white;
     }    
   </style>
 </head>
@@ -118,7 +136,7 @@
           const val = p.aqhi;
       
           const marker = L.circleMarker(latlng,{
-            radius: 10,
+            radius: 14,
             color: c,
             fillColor: c,
             weight: 1,
@@ -129,9 +147,13 @@
           const label = L.marker(latlng, {
             icon: L.divIcon({
               className: "canaqhi-label",
-              html: (val == null || isNaN(Number(val)) ? "—" : (Number(val) > 10 ? "10+" : Math.round(Number(val)))),
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
+              html: (() => {
+                const v = Number(p.aqhi);
+                if (!Number.isFinite(v)) return "—";
+                return v > 10 ? "10+" : Math.round(v);
+              })()
+              iconSize: [24, 24],
+              iconAnchor: [12, 12]
             }),
             interactive: false
           });
