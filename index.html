@@ -125,7 +125,16 @@
             fillOpacity: 0.9
           })
           .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${val ?? '—'}<br>${when}`);
-
+          
+          const label = L.marker(latlng, {
+            icon: L.divIcon({
+              className: "canaqhi-label",
+              html: (val == null || isNaN(val) ? "—" : (val > 10 ? "10+" : Math.round(val))),
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            }),
+            interactive: false
+          });          
           
         }
       }).addTo(map);
