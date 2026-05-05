@@ -97,8 +97,24 @@
           const p = f.properties||{};
           const c = p.color || aqhiColor(p.aqhi);
           const when = p.observation_datetime_text_en || p.observed || '';
-          return L.circleMarker(latlng,{radius:6,color:c,fillColor:c,weight:1,fillOpacity:0.9})
-            .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${p.aqhi ?? '—'}<br>${when}`);
+          const val = p.aqhi;
+          
+          return L.circleMarker(latlng,{
+            radius: 10,
+            color: c,
+            fillColor: c,
+            weight: 1,
+            fillOpacity: 0.9
+          })
+          .bindTooltip(
+            (val > 10 ? "10+" : Math.round(val)),
+            {
+              permanent: true,
+              direction: "center",
+              className: "canaqhi-label"
+            }
+          )
+          .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${val ?? '—'}<br>${when}`);
         }
       }).addTo(map);
     }catch(e){ console.warn('Observed not loaded:', e); }
@@ -149,8 +165,22 @@
           const idx = pickPeriodIndexByCategory(p, currentCategory);
           const val = p[`p${idx}_aqhi`];
           const c = aqhiColor(val);
-          const m = L.circleMarker(latlng,{radius:6,color:c,fillColor:c,weight:1,fillOpacity:0.9})
-            .bindPopup(
+          const m = L.circleMarker(latlng,{
+            radius: 10,
+            color: c,
+            fillColor: c,
+            weight: 1,
+            fillOpacity: 0.9
+          })
+          .bindTooltip(
+            (val > 10 ? "10+" : Math.round(val)),
+            {
+              permanent: true,
+              direction: "center",
+              className: "canaqhi-label"
+            }
+          )
+          .bindPopup(
               `<b>${p.name ?? '(unknown)'}</b><br>` +
               `Today: AQHI ${val ?? '—'}<br>` +
               popupTable(p)
