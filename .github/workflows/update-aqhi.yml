@@ -1,10 +1,11 @@
 name: Update AQHI (GeoMet)
 
 permissions:
-  contents: write   
-  
+  contents: write
+
 on:
-  schedule: [ { cron: "7 * * * *" } ]
+  schedule:
+    - cron: "7 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,9 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
+        with:
+          python-version: "3.11"
       - run: pip install requests pandas folium
       - run: python scripts/aqhi_geomet_all.py --out-dir data --html data/index.html
+      - run: date
       - run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
