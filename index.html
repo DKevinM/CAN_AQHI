@@ -158,9 +158,8 @@
             interactive: false
           });
           
-          marker.addTo(map);
-          label.addTo(map);
-          return marker; 
+        const group = L.layerGroup([marker, label]);
+        return group;
           
         }
       }).addTo(map);
