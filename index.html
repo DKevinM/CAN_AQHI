@@ -167,6 +167,10 @@
 
     try{
       const fcst = await fetchJSON('./data/aqhi_forecasts.geojson');
+
+      console.log("Forecast loaded:", fcst);
+      console.log("Features:", fcst.features?.length);
+      
       fcstLayer = L.geoJSON(fcst, {
         pointToLayer: (f, latlng) => {
           const p = f.properties||{};
@@ -200,7 +204,10 @@
         }
       }).addTo(map);
 
-    }catch(e){ console.warn('Forecast not loaded:', e); }
+
+    }catch(e){
+      console.error('Forecast load FAILED:', e);
+    }      
 
 
     function fitToActive() {
