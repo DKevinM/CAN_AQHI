@@ -32,7 +32,9 @@
           crossorigin=""></script>
   <script>
   (async function() {
-    const map = L.map('map').setView([56,-106],5);
+    const map = L.map('map', {
+      preferCanvas: true
+    }).setView([56, -106], 4);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
       maxZoom:18, attribution:'&copy; OpenStreetMap'
     }).addTo(map);
@@ -65,46 +67,12 @@
     }
 
 
-    function aqhiMarkerIcon(v){
-      const fill = aqhiColor(v);
-      const label = aqhiDisplay(v);
-    
-      return L.divIcon({
-        className: '',
-        html: `
-          <div style="
-            width:30px;
-            height:30px;
-            border-radius:50%;
-            background:${fill};
-            border:2px solid #222;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:12px;
-            font-weight:900;
-            letter-spacing:-0.5px;
-            color:#000;
-            text-shadow:
-              -2px -2px 0 #fff,
-               2px -2px 0 #fff,
-              -2px  2px 0 #fff,
-               2px  2px 0 #fff,
-               0 0 4px #fff;
-            box-sizing:border-box;
-          ">${label}</div>
-        `,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        popupAnchor: [0, -15]
-      });
-    }    
 
 
 
     
     async function fetchJSON(url){
-      const r = await fetch(url + '?v=' + Date.now(), {cache:'no-store'});
+      const r = await fetch(url);
       if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
       return r.json();
     }
