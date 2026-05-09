@@ -156,6 +156,7 @@
 
           // ===== BIND POPUP ONCE (content updated later per category) =====
           marker.bindPopup('');
+          marker._categoryForPopup = currentCategory;
 
           // ===== STORE REFERENCE =====
           markerMap.set(locationKey, { marker, props: p });
