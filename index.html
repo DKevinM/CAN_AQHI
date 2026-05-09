@@ -129,14 +129,27 @@
       return html;
     }
 
+    
     function recolorForecastMarkers(){
       for (const m of forecastMarkers){
         const p = m.__aqhiProps || {};
         const idx = pickPeriodIndexByCategory(p, currentCategory);
         const val = p[`p${idx}_aqhi`];
-        m.setIcon(aqhiMarkerIcon(val));
-        const labelMap = {today:'Today', tonight:'Tonight', tomorrow:'Tomorrow', tomorrow_night:'Tomorrow night'};
+    
+        m.setStyle({
+          color: '#222',
+          fillColor: c
+        });
+    
+        const labelMap = {
+          today:'Today',
+          tonight:'Tonight',
+          tomorrow:'Tomorrow',
+          tomorrow_night:'Tomorrow night'
+        };
+    
         const chosenLabel = labelMap[currentCategory] || 'Next';
+    
         m.setPopupContent(
           `<b>${p.name ?? '(unknown)'}</b><br>` +
           `${chosenLabel}: AQHI ${aqhiDisplay(val)}<br>` +
@@ -148,8 +161,6 @@
     try{
       const fcst = await fetchJSON('./data/aqhi_forecasts.geojson');
 
-      console.log("Forecast loaded:", fcst);
-      console.log("Features:", fcst.features?.length);
       
       fcstLayer = L.geoJSON(fcst, {
         pointToLayer: (f, latlng) => {
@@ -157,9 +168,15 @@
           const idx = pickPeriodIndexByCategory(p, currentCategory);
           const val = p[`p${idx}_aqhi`];
           const c = aqhiColor(val);
-
-          const m = L.marker(latlng, {
-            icon: aqhiMarkerIcon(val)
+          
+          const m = L.circleMarker(latlng, {
+            renderer: L.canvas(),
+            radius: 6,
+            color: '#222',
+            fillColor: c,
+            weight: 1.5,
+            opacity: 1,
+            fillOpacity: 0.9
           }).bindPopup(
             `<b>${p.name ?? '(unknown)'}</b><br>` +
             `Today: AQHI ${aqhiDisplay(val)}<br>` +
@@ -178,11 +195,6 @@
     }      
 
 
-    function fitToActive() {
-      if (fcstLayer && fcstLayer.getLayers && fcstLayer.getLayers().length) {
-        map.fitBounds(fcstLayer.getBounds(), { padding: [20, 20] });
-      }
-    }
 
 
 
@@ -232,7 +244,6 @@
 
     // --- Initial state ---
     recolorForecastMarkers();
-    fitToActive();
   })();
   </script>
 </body>
