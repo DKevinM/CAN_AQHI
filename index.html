@@ -22,33 +22,29 @@
     .legend .sw{display:inline-block;width:14px;height:14px;border:1px solid #333;margin-right:4px}
     
     .canaqhi-label {
+      transform: translateY(1px);
       background: transparent !important;
       border: none !important;
       box-shadow: none !important;
     
-      width: 44px !important;
-      height: 44px !important;
-      line-height: 44px !important;
+      color: #000 !important;
     
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-    
-      font-size: 18px !important;
+      font-size: 14px !important;
       font-weight: 900 !important;
     
-      color: #000 !important;
       text-align: center !important;
     
       margin: 0 !important;
       padding: 0 !important;
+    
+      line-height: 1 !important;
     
       text-shadow:
         -2px -2px 0 #fff,
          2px -2px 0 #fff,
         -2px  2px 0 #fff,
          2px  2px 0 #fff,
-         0px  0px 5px #fff !important;
+         0px  0px 4px #fff !important;
     
       pointer-events: none !important;
     }
@@ -127,49 +123,8 @@
     }
 
     // --- load datasets ---
-    let obsLayer=null, fcstLayer=null;
+    let fcstLayer=null;
 
-    // Observed
-    try{
-      const obs = await fetchJSON('./data/aqhi_observations.geojson');
-      
-      obsLayer = L.geoJSON(obs, {
-        pointToLayer: (f, latlng) => {
-      
-          const p = f.properties||{};
-          const c = p.color || aqhiColor(p.aqhi);
-          const when = p.observation_datetime_text_en || p.observed || '';
-          const val = Number(p.aqhi);
-      
-          const marker = L.circleMarker(latlng,{
-            radius: 20,
-            color: c,
-            fillColor: c,
-            weight: 1,
-            fillOpacity: 0.9
-          })
-          .bindPopup(`<b>${p.name ?? '(unknown)'}</b><br>AQHI: ${!Number.isFinite(val) ? '—' : (val > 10 ? '10+' : Math.round(val))}`);
-          
-          const label = L.marker(latlng, {
-            icon: L.divIcon({
-              className: "canaqhi-label",
-              html: (() => {
-                const v = val;
-                if (!Number.isFinite(v)) return "—";
-                return v > 10 ? "10+" : Math.round(v);
-              })(),
-              iconSize: [44, 44],
-              iconAnchor: [22, 22]
-            }),
-            interactive: false
-          });
-          
-        const group = L.layerGroup([marker, label]);
-        return group;
-          
-        }
-      }).addTo(map);
-    }catch(e){ console.warn('Observed not loaded:', e); }
 
     // Forecast (single layer, recolored by selected category)
     const forecastMarkers = [];
@@ -199,6 +154,7 @@
         const val = p[`p${idx}_aqhi`];
         const c = aqhiColor(val);
         m.setStyle({color:c, fillColor:c});
+        m.setTooltipContent(aqhiDisplay(val));
         const labelMap = {today:'Today', tonight:'Tonight', tomorrow:'Tomorrow', tomorrow_night:'Tomorrow night'};
         const chosenLabel = labelMap[currentCategory] || 'Next';
         m.setPopupContent(
@@ -219,10 +175,11 @@
           const c = aqhiColor(val);
 
           const m = L.circleMarker(latlng,{
-            radius: 20,
-            color: c,
+            radius: 18,
+            color: '#222',
             fillColor: c,
-            weight: 1,
+            weight: 2,
+            opacity: 1,
             fillOpacity: 0.9
           })
           .bindPopup(
@@ -233,72 +190,26 @@
               popupTable(p)
             );
           m.__aqhiProps = p;
+          m.bindTooltip(aqhiDisplay(val), {
+          permanent: true,
+          direction: 'center',
+          className: 'canaqhi-label'
+        });
           forecastMarkers.push(m);
           return m;
         }
-      });
-      // note: not added to map by default (Observed starts active)
-    }catch(e){ console.warn('Forecast not loaded:', e); }
+      }).addTo(map);
 
-    // --- Exclusive layer toggling ---
-    function showObserved() {
-      if (fcstLayer && map.hasLayer(fcstLayer)) map.removeLayer(fcstLayer);
-      if (obsLayer && !map.hasLayer(obsLayer)) obsLayer.addTo(map);
-      setPeriodCtlEnabled(false); // disable period radios when observed
-    }
-    function showForecast() {
-      if (obsLayer && map.hasLayer(obsLayer)) map.removeLayer(obsLayer);
-      if (fcstLayer && !map.hasLayer(fcstLayer)) fcstLayer.addTo(map);
-      recolorForecastMarkers();   // ensure current period colors apply
-      setPeriodCtlEnabled(true);  // enable period radios when forecast is active
-    }
+    }catch(e){ console.warn('Forecast not loaded:', e); }
 
 
     function fitToActive() {
-      let active = null;
-    
-      if (obsLayer && map.hasLayer(obsLayer)) {
-        active = obsLayer;
-      } else if (fcstLayer && map.hasLayer(fcstLayer)) {
-        active = fcstLayer;
-      }
-    
-      if (active && active.getLayers && active.getLayers().length) {
-        map.fitBounds(active.getBounds(), { padding: [20, 20] });
+      if (fcstLayer && fcstLayer.getLayers && fcstLayer.getLayers().length) {
+        map.fitBounds(fcstLayer.getBounds(), { padding: [20, 20] });
       }
     }
 
 
-
-    
-
-    // --- Top-right: Observed vs Forecast (radio) ---
-    const ToggleCtl = L.Control.extend({
-      onAdd: function() {
-        const div = L.DomUtil.create('div', 'ctl');
-        div.id = 'layer-toggle-ctl';
-        div.style.minWidth = '200px';
-        div.innerHTML = `
-          <div><b>Layer</b></div>
-          <label><input type="radio" name="view" value="observed" checked> Current (Observed)</label><br>
-          <label><input type="radio" name="view" value="forecast"> Forecast</label>
-        `;
-        L.DomEvent.disableClickPropagation(div);
-        div.querySelectorAll('input[name="view"]').forEach(r => {
-          r.addEventListener('change', (e) => {
-            if (e.target.value === 'observed') {
-              showObserved();
-            } else {
-              showForecast();
-            }
-            fitToActive();
-          });
-        });
-        return div;
-      },
-      onRemove: function() {}
-    });
-    new ToggleCtl({ position: 'topright' }).addTo(map);
 
     // --- Top-left: Forecast period (radio) ---
     const PeriodCtl = L.Control.extend({
@@ -306,7 +217,7 @@
         const div = L.DomUtil.create('div','ctl');
         div.id = 'forecast-period-ctl';
         div.innerHTML = `
-          <div><b>Forecast period</b></div>
+          <div><b>Layer</b></div>
           <label><input type="radio" name="p" value="today" checked> Today</label><br>
           <label><input type="radio" name="p" value="tonight"> Tonight</label><br>
           <label><input type="radio" name="p" value="tomorrow"> Tomorrow</label><br>
@@ -323,15 +234,7 @@
       },
       onRemove: function(){}
     });
-    new PeriodCtl({position:'topleft'}).addTo(map);
-
-    // Enable/disable period control
-    function setPeriodCtlEnabled(enabled){
-      const el = document.getElementById('forecast-period-ctl');
-      if (!el) return;
-      el.style.opacity = enabled ? 1 : 0.5;
-      el.style.pointerEvents = enabled ? 'auto' : 'none';
-    }
+    new PeriodCtl({position:'topright'}).addTo(map);
 
     // Legend
     const legend = document.createElement('div');
@@ -353,9 +256,8 @@
     document.body.appendChild(legend);
 
     // --- Initial state ---
-    showObserved();     // Observed visible, Forecast hidden
+    recolorForecastMarkers();
     fitToActive();
-    setPeriodCtlEnabled(false); // disable forecast period until user selects Forecast
   })();
   </script>
 </body>
