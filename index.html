@@ -21,33 +21,7 @@
     }
     .legend .sw{display:inline-block;width:14px;height:14px;border:1px solid #333;margin-right:4px}
     
-    .canaqhi-label {
-      transform: translateY(1px);
-      background: transparent !important;
-      border: none !important;
-      box-shadow: none !important;
-    
-      color: #000 !important;
-    
-      font-size: 14px !important;
-      font-weight: 900 !important;
-    
-      text-align: center !important;
-    
-      margin: 0 !important;
-      padding: 0 !important;
-    
-      line-height: 1 !important;
-    
-      text-shadow:
-        -2px -2px 0 #fff,
-         2px -2px 0 #fff,
-        -2px  2px 0 #fff,
-         2px  2px 0 #fff,
-         0px  0px 4px #fff !important;
-    
-      pointer-events: none !important;
-    }
+
   </style>
 </head>
 <body>
@@ -89,6 +63,45 @@
     
       return PALETTE[Math.max(1, Math.min(10, n)) - 1];
     }
+
+
+    function aqhiMarkerIcon(v){
+      const fill = aqhiColor(v);
+      const label = aqhiDisplay(v);
+    
+      return L.divIcon({
+        className: '',
+        html: `
+          <div style="
+            width:36px;
+            height:36px;
+            border-radius:50%;
+            background:${fill};
+            border:2px solid #222;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:14px;
+            font-weight:900;
+            color:#000;
+            text-shadow:
+              -2px -2px 0 #fff,
+               2px -2px 0 #fff,
+              -2px  2px 0 #fff,
+               2px  2px 0 #fff,
+               0 0 4px #fff;
+            box-sizing:border-box;
+          ">${label}</div>
+        `,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+        popupAnchor: [0, -18]
+      });
+    }    
+
+
+
+    
     async function fetchJSON(url){
       const r = await fetch(url + '?v=' + Date.now(), {cache:'no-store'});
       if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
@@ -153,8 +166,7 @@
         const idx = pickPeriodIndexByCategory(p, currentCategory);
         const val = p[`p${idx}_aqhi`];
         const c = aqhiColor(val);
-        m.setStyle({color:c, fillColor:c});
-        m.setTooltipContent(aqhiDisplay(val));
+        m.setIcon(aqhiMarkerIcon(val));
         const labelMap = {today:'Today', tonight:'Tonight', tomorrow:'Tomorrow', tomorrow_night:'Tomorrow night'};
         const chosenLabel = labelMap[currentCategory] || 'Next';
         m.setPopupContent(
@@ -178,27 +190,15 @@
           const val = p[`p${idx}_aqhi`];
           const c = aqhiColor(val);
 
-          const m = L.circleMarker(latlng,{
-            radius: 18,
-            color: '#222',
-            fillColor: c,
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.9
-          })
-          .bindPopup(
-
-        
-              `<b>${p.name ?? '(unknown)'}</b><br>` +
-              `Today: AQHI ${aqhiDisplay(val)}<br>` +
-              popupTable(p)
-            );
+          const m = L.marker(latlng, {
+            icon: aqhiMarkerIcon(val)
+          }).bindPopup(
+            `<b>${p.name ?? '(unknown)'}</b><br>` +
+            `Today: AQHI ${aqhiDisplay(val)}<br>` +
+            popupTable(p)
+          );
+          
           m.__aqhiProps = p;
-          m.bindTooltip(aqhiDisplay(val), {
-          permanent: true,
-          direction: 'center',
-          className: 'canaqhi-label'
-        });
           forecastMarkers.push(m);
           return m;
         }
