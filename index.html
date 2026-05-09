@@ -21,42 +21,37 @@
     }
     .legend .sw{display:inline-block;width:14px;height:14px;border:1px solid #333;margin-right:4px}
     
-    .leaflet-tooltip.canaqhi-label {
-      background: transparent;
-      border: none;
-      box-shadow: none;
-    
-      color: black;
-      font-weight: bold;
-      font-size: 10px;
-    
-      text-shadow:
-        -1px -1px 0 white,
-         1px -1px 0 white,
-        -1px  1px 0 white,
-         1px  1px 0 white;
-    }
     .canaqhi-label {
-      background: transparent;
-      border: none;
-      box-shadow: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      font-size: 14px;
-      font-weight: 900;
-      color: black;
-      text-align: center;
-      pointer-events: none;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    
+      width: 44px !important;
+      height: 44px !important;
+      line-height: 44px !important;
+    
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    
+      font-size: 18px !important;
+      font-weight: 900 !important;
+    
+      color: #000 !important;
+      text-align: center !important;
+    
+      margin: 0 !important;
+      padding: 0 !important;
+    
       text-shadow:
-        -1.5px -1.5px 0 white,
-         1.5px -1.5px 0 white,
-        -1.5px  1.5px 0 white,
-         1.5px  1.5px 0 white,
-         0px    0px   3px white;
-    }  
+        -2px -2px 0 #fff,
+         2px -2px 0 #fff,
+        -2px  2px 0 #fff,
+         2px  2px 0 #fff,
+         0px  0px 5px #fff !important;
+    
+      pointer-events: none !important;
+    }
   </style>
 </head>
 <body>
@@ -147,7 +142,7 @@
           const val = Number(p.aqhi);
       
           const marker = L.circleMarker(latlng,{
-            radius: 14,
+            radius: 20,
             color: c,
             fillColor: c,
             weight: 1,
@@ -163,8 +158,8 @@
                 if (!Number.isFinite(v)) return "—";
                 return v > 10 ? "10+" : Math.round(v);
               })(),
-              iconSize: [24, 24],
-              iconAnchor: [12, 12]
+              iconSize: [44, 44],
+              iconAnchor: [22, 22]
             }),
             interactive: false
           });
@@ -191,7 +186,7 @@
       for (const [key,label] of cats){
         const idx = pickPeriodIndexByCategory(p, key);
         const val = p[`p${idx}_aqhi`];
-        html += `<tr><td>${label}</td><td style="padding-left:8px;">AQHI ${val ?? '—'}</td></tr>`;
+        html += `<tr><td>${label}</td><td style="padding-left:8px;">AQHI ${aqhiDisplay(val)}</td></tr>`;
       }
       html += '</table>';
       return html;
@@ -208,7 +203,7 @@
         const chosenLabel = labelMap[currentCategory] || 'Next';
         m.setPopupContent(
           `<b>${p.name ?? '(unknown)'}</b><br>` +
-          `${chosenLabel}: AQHI ${val ?? '—'}<br>` +
+          `${chosenLabel}: AQHI ${aqhiDisplay(val)}<br>` +
           popupTable(p)
         );
       }
@@ -224,7 +219,7 @@
           const c = aqhiColor(val);
 
           const m = L.circleMarker(latlng,{
-            radius: 10,
+            radius: 20,
             color: c,
             fillColor: c,
             weight: 1,
@@ -234,7 +229,7 @@
 
         
               `<b>${p.name ?? '(unknown)'}</b><br>` +
-              `Today: AQHI ${val ?? '—'}<br>` +
+              `Today: AQHI ${aqhiDisplay(val)}<br>` +
               popupTable(p)
             );
           m.__aqhiProps = p;
