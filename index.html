@@ -109,7 +109,6 @@
 
 
     // Forecast (single layer, recolored by selected category)
-    const forecastMarkers = [];
     let currentCategory = 'today'; // default
 
     function popupTable(p){
@@ -129,46 +128,19 @@
       return html;
     }
 
+
+    function buildForecastLayer(fcst, category){
     
-    function recolorForecastMarkers(){
-      for (const m of forecastMarkers){
-        const p = m.__aqhiProps || {};
-        const idx = pickPeriodIndexByCategory(p, currentCategory);
-        const val = p[`p${idx}_aqhi`];
-    
-        m.setStyle({
-          color: '#222',
-          fillColor: c
-        });
-    
-        const labelMap = {
-          today:'Today',
-          tonight:'Tonight',
-          tomorrow:'Tomorrow',
-          tomorrow_night:'Tomorrow night'
-        };
-    
-        const chosenLabel = labelMap[currentCategory] || 'Next';
-    
-        m.setPopupContent(
-          `<b>${p.name ?? '(unknown)'}</b><br>` +
-          `${chosenLabel}: AQHI ${aqhiDisplay(val)}<br>` +
-          popupTable(p)
-        );
+      if (fcstLayer) {
+        map.removeLayer(fcstLayer);
       }
-    }
-
-    try{
-      const fcst = await fetchJSON('./data/aqhi_forecasts.geojson');
-
-      
+    
       fcstLayer = L.geoJSON(fcst, {
-        pointToLayer: (f, latlng) => {
-          const p = f.properties||{};
-          const idx = pickPeriodIndexByCategory(p, currentCategory);
-          const val = p[`p${idx}_aqhi`];
-          const c = aqhiColor(val);
-          
+        pointToLayer: (f, latlng) => {    
+          const p = f.properties || {};
+          const idx = pickPeriodIndexByCategory(p, category);    
+          const val = p[`p${idx}_aqhi`];    
+          const c = aqhiColor(val);    
           const m = L.circleMarker(latlng, {
             renderer: L.canvas(),
             radius: 6,
@@ -177,22 +149,46 @@
             weight: 1.5,
             opacity: 1,
             fillOpacity: 0.9
-          }).bindPopup(
-            `<b>${p.name ?? '(unknown)'}</b><br>` +
-            `Today: AQHI ${aqhiDisplay(val)}<br>` +
-            popupTable(p)
-          );
-          
-          m.__aqhiProps = p;
-          forecastMarkers.push(m);
+          });
+    
+          m.on('click', () => {
+    
+            const labelMap = {
+              today:'Today',
+              tonight:'Tonight',
+              tomorrow:'Tomorrow',
+              tomorrow_night:'Tomorrow night'
+            };
+    
+            m.bindPopup(
+              `<b>${p.name ?? '(unknown)'}</b><br>` +
+              `${labelMap[category]}: AQHI ${aqhiDisplay(val)}<br>` +
+              popupTable(p)
+            ).openPopup();
+    
+          });
+    
           return m;
         }
+    
       }).addTo(map);
+    }
 
+
+
+    
+    try{
+      console.time('forecast-load');
+      const fcst = await fetchJSON('./data/aqhi_forecasts.geojson');
+      window.FCST_DATA = fcst;
+      buildForecastLayer(fcst, currentCategory);   
+      console.timeEnd('forecast-load');
 
     }catch(e){
       console.error('Forecast load FAILED:', e);
     }      
+
+
 
 
 
@@ -214,7 +210,7 @@
         div.querySelectorAll('input[name="p"]').forEach(r => {
           r.addEventListener('change', (e) => {
             currentCategory = e.target.value;
-            recolorForecastMarkers();
+            buildForecastLayer(window.FCST_DATA, currentCategory);
           });
         });
         return div;
@@ -242,8 +238,6 @@
     `;
     document.body.appendChild(legend);
 
-    // --- Initial state ---
-    recolorForecastMarkers();
   })();
   </script>
 </body>
