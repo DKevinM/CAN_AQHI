@@ -16,9 +16,16 @@
       box-shadow: 0 1px 3px rgba(0,0,0,.2); font: 14px/1.2 system-ui, Arial;
     }
     .legend {
-      position: fixed; bottom: 18px; left: 12px; background: #fff; border:1px solid #888; border-radius:6px;
-      padding:8px; font:12px/1.2 system-ui, Arial; z-index: 9999;
-    }
+      position: fixed;
+      bottom: 110px;
+      left: 12px;
+      background: #fff;
+      border:1px solid #888;
+      border-radius:6px;
+      padding:8px;
+      font:12px/1.2 system-ui, Arial;
+      z-index: 9999;
+    }  
     .legend .sw{display:inline-block;width:14px;height:14px;border:1px solid #333;margin-right:4px}
   </style>
 </head>
@@ -163,7 +170,7 @@
       }
     });
     
-    new SmokeCtl({ position: 'topright' }).addTo(map);
+    new SmokeCtl({ position: 'bottomleft' }).addTo(map);
 
     
 
