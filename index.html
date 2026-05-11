@@ -54,36 +54,21 @@
       [75, -85]
     ];
     
-    const smokeFrames = {
+
+    const smokeFrames = {};
     
-      now: L.imageOverlay(
-        'https://raw.githubusercontent.com/DKevinM/AB_datapull/main/data/output/firesmoke_now.png',
+    for (let h = 0; h <= 24; h += 2) {
+      const key = `${String(h).padStart(2, '0')}h`;
+    
+      smokeFrames[key] = L.imageOverlay(
+        `https://raw.githubusercontent.com/DKevinM/AB_datapull/main/data/output/firesmoke_${key}.png`,
         smokeBounds,
         { opacity: 0.90 }
-      ),
-    
-      h6: L.imageOverlay(
-        'https://raw.githubusercontent.com/DKevinM/AB_datapull/main/data/output/firesmoke_6h.png',
-        smokeBounds,
-        { opacity: 0.90 }
-      ),
-    
-      h12: L.imageOverlay(
-        'https://raw.githubusercontent.com/DKevinM/AB_datapull/main/data/output/firesmoke_12h.png',
-        smokeBounds,
-        { opacity: 0.90 }
-      ),
-    
-      h24: L.imageOverlay(
-        'https://raw.githubusercontent.com/DKevinM/AB_datapull/main/data/output/firesmoke_24h.png',
-        smokeBounds,
-        { opacity: 0.90 }
-      )
-    
-    };
+      );
+    }
     
     // default frame
-    smokeFrames.now.addTo(map);
+    smokeFrames["00h"].addTo(map);
       
 
     // ===============================
@@ -96,14 +81,18 @@
     
         const div = L.DomUtil.create('div', 'ctl');
     
+
         div.innerHTML = `
           <div><b>FireSmoke</b></div>
-    
-          <label><input type="radio" name="smoke" value="now" checked> Now</label><br>
-          <label><input type="radio" name="smoke" value="h6"> +6h</label><br>
-          <label><input type="radio" name="smoke" value="h12"> +12h</label><br>
-          <label><input type="radio" name="smoke" value="h24"> +24h</label><br><br>
-    
+        
+          ${Array.from({length: 13}, (_, i) => {
+            const h = i * 2;
+            const key = `${String(h).padStart(2, '0')}h`;
+            const label = h === 0 ? 'Now' : `+${h}h`;
+            return `<label><input type="radio" name="smoke" value="${key}" ${h === 0 ? 'checked' : ''}> ${label}</label><br>`;
+          }).join('')}
+        
+          <br>
           <button id="playSmoke">Play</button>
         `;
     
@@ -144,7 +133,7 @@
     
           playing = true;
     
-          const order = ['now', 'h6', 'h12', 'h24'];
+          const order = Object.keys(smokeFrames);
     
           let i = 0;
     
@@ -170,7 +159,7 @@
       }
     });
     
-    new SmokeCtl({ position: 'bottomleft' }).addTo(map);
+    new SmokeCtl({ position: 'bottomright' }).addTo(map);
 
     
 
