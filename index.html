@@ -17,7 +17,7 @@
     }
     .legend {
       position: fixed;
-      bottom: 110px;
+      bottom: 20px;
       left: 12px;
       background: #fff;
       border:1px solid #888;
@@ -98,17 +98,42 @@
     
         L.DomEvent.disableClickPropagation(div);
     
+        let currentSmokeLayer = smokeFrames["00h"];
+        
         function showFrame(name) {
-    
-          Object.values(smokeFrames).forEach(layer => {
-    
-            if (map.hasLayer(layer)) {
-              map.removeLayer(layer);
+        
+          const nextLayer = smokeFrames[name];
+        
+          // already active
+          if (currentSmokeLayer === nextLayer) return;
+        
+          // add next layer FIRST
+          if (!map.hasLayer(nextLayer)) {
+            nextLayer.setOpacity(0);
+            nextLayer.addTo(map);
+          }
+        
+          let opacity = 0;
+        
+          const fade = setInterval(() => {
+        
+            opacity += 0.15;
+        
+            nextLayer.setOpacity(opacity);
+        
+            if (opacity >= 0.9) {
+        
+              clearInterval(fade);
+        
+              // remove previous AFTER fade complete
+              if (currentSmokeLayer && map.hasLayer(currentSmokeLayer)) {
+                map.removeLayer(currentSmokeLayer);
+              }
+        
+              currentSmokeLayer = nextLayer;
             }
-    
-          });
-    
-          smokeFrames[name].addTo(map);
+        
+          }, 40);
         }
     
         div.querySelectorAll('input[name="smoke"]').forEach(r => {
