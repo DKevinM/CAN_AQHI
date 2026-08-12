@@ -26,6 +26,64 @@ except ImportError:
 OBS_API = "https://api.weather.gc.ca/collections/aqhi-observations-realtime/items"
 FCST_API = "https://api.weather.gc.ca/collections/aqhi-forecasts-realtime/items"
 
+# The GeoMet AQHI feed's properties have no "province" field at all (confirmed
+# against the live API), so p.get("province") was always None — every row in
+# aqhi_observations.csv/geojson had an empty province column. There are ~125
+# AQHI zones nationally and the list changes rarely, so a name lookup is more
+# reliable here than guessing from the location_id's leading letter (a pattern
+# that held for every province spot-checked, but wasn't confirmed for all of
+# them, e.g. QC/NB/PE/NL/territories weren't in that sample).
+PROVINCE_BY_NAME = {
+    "Airdrie": "AB", "Barrie": "ON", "Bathurst": "NB", "Belleville": "ON",
+    "Brampton": "ON", "Brandon": "MB", "Brantford": "ON", "Brooks": "AB",
+    "Buffalo Narrows": "SK", "Burin": "NL", "Burlington": "ON", "Calgary": "AB",
+    "Campbellton": "NB", "Castlegar": "BC", "Central Fraser Valley": "BC",
+    "Central Okanagan": "BC", "Charlottetown": "PE", "Chatham": "ON",
+    "Cold Lake": "AB", "Comox Valley": "BC", "Corner Brook": "NL",
+    "Cornwall": "ON", "Cranbrook": "BC", "Dorset": "ON", "Drayton Valley": "AB",
+    "Duncan": "BC", "Eastern Fraser Valley": "BC", "Edmonton": "AB",
+    "Edmundston": "NB", "Edson": "AB", "Estevan": "SK", "Flin Flon": "MB",
+    "Fort Chipewyan": "AB", "Fort McKay": "AB", "Fort McMurray": "AB",
+    "Fort Saskatchewan": "AB", "Fort Smith": "NT", "Fort St. John": "BC",
+    "Fredericton": "NB", "Genesee": "AB", "Grand Bend": "ON",
+    "Grand Falls - Windsor": "NL", "Grande Prairie": "AB", "Guelph": "ON",
+    "Halifax": "NS", "Halifax Downtown": "NS", "Hamilton": "ON",
+    "Hamilton Downtown": "ON", "Hamilton Mountain": "ON", "Hamilton West": "ON",
+    "Hinton": "AB", "Kamloops": "BC", "Kentville": "NS", "Kingston": "ON",
+    "Kitchener": "ON", "Kitimat": "BC", "Labrador City": "NL",
+    "Lake Major": "NS", "Lamont County": "AB", "Lethbridge": "AB",
+    "London": "ON", "Medicine Hat": "AB", "Metro Vancouver - NE": "BC",
+    "Metro Vancouver - NW": "BC", "Metro Vancouver - SE": "BC",
+    "Metro Vancouver - SW": "BC", "Milton": "ON", "Miramichi": "NB",
+    "Mississauga": "ON", "Moncton": "NB", "Nanaimo / Parksville": "BC",
+    "Newmarket": "ON", "Norman Wells": "NT", "North Bay": "ON",
+    "North Okanagan": "BC", "Oakville": "ON", "Oshawa": "ON", "Ottawa": "ON",
+    "Parry Sound": "ON", "Peterborough": "ON", "Pictou": "NS",
+    "Port Hawkesbury": "NS", "Port Stanley": "ON", "Prince Albert": "SK",
+    "Prince George": "BC", "Quesnel": "BC", "Red Deer": "AB", "Regina": "SK",
+    "Saint John": "NB", "Sarnia": "ON", "Saskatoon": "SK",
+    "Sault Ste. Marie": "ON", "Smithers": "BC", "South Okanagan": "BC",
+    "Sparwood": "BC", "Squamish": "BC", "St. Albert": "AB",
+    "St. Andrews": "NB", "St. Catharines": "ON", "St. John's": "NL",
+    "Strathcona County": "AB", "Sturgeon County": "AB", "Sudbury": "ON",
+    "Summerside (Wellington)": "PE", "Swift Current": "SK", "Sydney": "NS",
+    "Terrace": "BC", "Thunder Bay": "ON", "Tiverton": "ON", "Toronto": "ON",
+    "Toronto Downtown": "ON", "Toronto East": "ON", "Toronto North": "ON",
+    "Toronto West": "ON", "Victoria / Saanich": "BC", "WestShore": "BC",
+    "Whistler": "BC", "Whitehorse": "YT", "Williams Lake": "BC",
+    "Windsor": "ON", "Windsor Downtown": "ON", "Windsor West": "ON",
+    "Winnipeg": "MB", "Wood Buffalo - south": "AB", "Yellowknife": "NT",
+}
+
+def lookup_province(location_name: Optional[str]) -> Optional[str]:
+    """Best-effort province lookup by AQHI zone name. Returns None for a zone
+    not in the table above (e.g. a new one ECCC adds later) rather than
+    guessing — same as the old always-empty behaviour for those, but correct
+    for the ~125 zones that exist today."""
+    if not location_name:
+        return None
+    return PROVINCE_BY_NAME.get(location_name)
+
 # 11-color AQHI palette (1..10, 10+); grey for missing
 AQHI_COLORS = [
     "#01cbff", "#0099cb", "#016797", "#fffe03", "#ffcb00", "#ff9835",
@@ -83,7 +141,7 @@ def obs_to_df(features: List[Dict[str, Any]]) -> pd.DataFrame:
         rows.append({
             "id": p.get("id") or p.get("location_id"),
             "name": p.get("location_name_en") or p.get("location_name_fr"),
-            "province": p.get("province"),
+            "province": lookup_province(p.get("location_name_en")),
             "aqhi": p.get("aqhi"),
             "observed": p.get("observation_datetime"),
             "observation_datetime_text_en": p.get("observation_datetime_text_en"),
@@ -116,7 +174,7 @@ def fcst_to_df(features: List[Dict[str, Any]]) -> pd.DataFrame:
         rows.append({
             "id": p.get("id") or p.get("location_id"),
             "name": p.get("location_name_en") or p.get("location_name_fr"),
-            "province": p.get("province"),
+            "province": lookup_province(p.get("location_name_en")),
             "forecast_datetime": p.get("forecast_datetime"),
             "publication_datetime": p.get("publication_datetime"),
             "forecast_datetime_text_en": p.get("forecast_datetime_text_en"),
